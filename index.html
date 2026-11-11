@@ -74,7 +74,9 @@
   .ghostbtn{font:inherit;font-size:17px;font-weight:700;width:100%;border:2px solid var(--navy);border-radius:12px;background:#fff;color:var(--navy);padding:13px;min-height:56px;cursor:pointer;margin-top:10px}
   .photo-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .photo-row img{width:90px;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
-  .filebtn{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;border:2px solid var(--navy);border-radius:10px;padding:10px 16px;color:var(--navy);font-weight:700;background:#fff;min-height:50px}
+  .photo-btns{display:grid;grid-template-columns:1fr;gap:10px;max-width:440px}
+  .filebtn{position:relative;overflow:hidden;display:flex;align-items:center;gap:12px;border:2px solid var(--navy);border-radius:12px;padding:12px 16px;color:var(--navy);font-weight:700;background:#fff;min-height:58px;cursor:pointer}
+  .filebtn svg{width:26px;height:26px;flex:0 0 26px}
   .filebtn input{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:100px}
   .linkbtn{border:0;background:none;color:var(--navy);text-decoration:underline;font:inherit;font-size:16px;cursor:pointer;padding:8px 4px}
 
@@ -167,8 +169,11 @@
       <div class="field">
         <span class="lbl"><span data-t="photo"></span> <span class="optl" data-t="optional"></span></span>
         <p class="hint" data-t="photoHint"></p>
+        <div class="photo-btns" id="photoBtns">
+          <label class="filebtn" id="camBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h3.5l2-3h7l2 3H21v11H3z"/><circle cx="12" cy="13" r="3.6"/></svg><span data-t="photoCamera"></span><input type="file" id="photoCam" accept="image/*" capture="environment"></label>
+          <label class="filebtn" id="pickBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg><span data-t="photoGallery"></span><input type="file" id="photoPick" accept="image/*"></label>
+        </div>
         <div class="photo-row"><img id="photoPrev" alt="" hidden>
-          <span class="filebtn"><span id="photoBtnTxt"></span><input type="file" id="photo" accept="image/*"></span>
           <button type="button" class="linkbtn" id="photoRemove" data-t="photoRemove" hidden></button></div>
       </div>
       <div class="err" id="err3" hidden></div>
@@ -275,7 +280,7 @@ const TEXT = {
   q3:'Tell us what happened', q3label:'Write your complaint here',
   tip1:'What happened, and when?', tip2:'Who did you speak to, if you know?', tip3:'What would you like the Ministry to do?',
   photo:'Photo', optional:'(optional)', photoHint:'You can add one photo, for example of a letter.',
-  photoAdd:'Add a photo', photoChange:'Change photo', photoRemove:'Remove photo',
+  photoCamera:'Take a photo', photoGallery:'Choose a saved photo', photoRemove:'Remove photo',
   q4:'Can we contact you about this?', q4hint:'Tap one answer.',
   modeNamed:'Yes, you can contact me', modeNamedHint:'Give your name and phone number.',
   modeAnon:'No, keep me anonymous', modeAnonHint:'We will not know who you are. You can still check your complaint with your reference number.',
@@ -328,6 +333,10 @@ function store(){ try { return window.localStorage; } catch(e){ return null; } }
 function sGet(k){ try { const v = store() && store().getItem(k); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
 function sSet(k, v){ try { store() && store().setItem(k, JSON.stringify(v)); } catch(e){} }
 function sDel(k){ try { store() && store().removeItem(k); } catch(e){} }
+/* session storage: kept only while this browser tab is open (used to survive a refresh) */
+function ssGet(k){ try { const v = window.sessionStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
+function ssSet(k, v){ try { window.sessionStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+function ssDel(k){ try { window.sessionStorage.removeItem(k); } catch(e){} }
 const digits = s => String(s || '').replace(/\D/g, '');
 
 /* answers kept here */
@@ -340,7 +349,6 @@ function applyText(){
   $('#helpLine').textContent = t('help', {phone: CONFIG.HELP_PHONE, email: CONFIG.HELP_EMAIL});
   $('#helpHome').textContent = t('homeHelp', {phone: CONFIG.HELP_PHONE});
   $('#backBtn').textContent = '‹ ' + t('back'); $('#trackBack').textContent = '‹ ' + t('back');
-  $('#photoBtnTxt').textContent = photo ? t('photoChange') : t('photoAdd');
   document.documentElement.lang = LANG === 'gil' ? 'gil' : 'en';
   if (TEXT.gil){ $('#langRow').hidden = false; $('#langBtn').textContent = LANG === 'en' ? t('langOther') : 'English'; }
   buildOptions();
@@ -457,25 +465,40 @@ function compressImage(file){
     img.src = url;
   });
 }
-$('#photo').onchange = async e => {
+/* "Take a photo" opens the phone camera straight away (capture). "Choose a saved photo" opens the gallery.
+   On a laptop or PC there is no camera button, only "Choose a saved photo". */
+function showPhoto(){
+  const has = !!photo;
+  if (has) $('#photoPrev').src = photo.preview;
+  $('#photoPrev').hidden = !has; $('#photoRemove').hidden = !has; $('#photoBtns').hidden = has;
+}
+async function usePhoto(e){
   const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return;
-  try { photo = await compressImage(file); $('#photoPrev').src = photo.preview; $('#photoPrev').hidden = false; $('#photoRemove').hidden = false; $('#photoBtnTxt').textContent = t('photoChange'); hideErr(3); }
+  try { photo = await compressImage(file); hideErr(3); ssSet('moe_cr_photo', { name: photo.name, type: photo.type, data: photo.data }); }
   catch(err){ photo = null; showErr(3, t('errPhoto')); }
-};
-$('#photoRemove').onclick = () => { photo = null; $('#photoPrev').hidden = true; $('#photoRemove').hidden = true; $('#photoBtnTxt').textContent = t('photoAdd'); };
+  showPhoto();
+}
+$('#photoCam').onchange = usePhoto; $('#photoPick').onchange = usePhoto;
+if (!matchMedia('(pointer:coarse)').matches) $('#camBtn').hidden = true;
+$('#photoRemove').onclick = () => { photo = null; ssDel('moe_cr_photo'); showPhoto(); };
 
 /* ---------------- what you typed is kept on this phone ---------------- */
 const DRAFT = 'moe_cr_draft2';
 let dTimer = null;
-function save(){ clearTimeout(dTimer); dTimer = setTimeout(() => sSet(DRAFT, Object.assign({}, A, { details: $('#details').value, name: $('#name').value, phone: $('#phone').value, email: $('#email').value })), 300); }
+function saveNow(){ sSet(DRAFT, Object.assign({}, A, { details: $('#details').value, name: $('#name').value, phone: $('#phone').value, email: $('#email').value })); }
+function save(){ clearTimeout(dTimer); dTimer = setTimeout(saveNow, 300); }
+window.addEventListener('pagehide', () => { if (step) { clearTimeout(dTimer); saveNow(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && step) { clearTimeout(dTimer); saveNow(); } });
 function restore(){
   const d = sGet(DRAFT); if (!d || !(d.details || d.place || d.category)) return;
   ['place','school','section','other','category','mode'].forEach(k => A[k] = d[k] || '');
   $('#details').value = d.details || ''; $('#name').value = d.name || ''; $('#phone').value = d.phone || ''; $('#email').value = d.email || ''; $('#otherPlace').value = A.other;
   $('#draftNote').hidden = false;
+  const ph = ssGet('moe_cr_photo');
+  if (ph && ph.data){ photo = { name: ph.name, type: ph.type, data: ph.data, preview: 'data:' + ph.type + ';base64,' + ph.data }; showPhoto(); }
 }
 function reset(){
-  Object.keys(A).forEach(k => A[k] = ''); photo = null; $('#f').reset(); $('#photoPrev').hidden = true; $('#photoRemove').hidden = true;
+  Object.keys(A).forEach(k => A[k] = ''); photo = null; ssDel('moe_cr_photo'); $('#f').reset(); showPhoto();
   sDel(DRAFT); $('#draftNote').hidden = true; $('#sendErr').hidden = true; $$('.err').forEach(e => e.hidden = true); applyText();
 }
 $('#clearDraft').onclick = () => { reset(); if (cur.d > 1) history.go(1 - cur.d); else showStep(1); };
@@ -513,7 +536,7 @@ $('#f').onsubmit = async e => {
     const r = DEMO ? await demoSubmit(p) : await callScript(p);
     if (!r || !r.ok) throw new Error(r && r.error ? t('errServer') + r.error : t('errSend'));
     sDel(DRAFT);
-    $('#doneRef').textContent = r.ref; $('#donePin').textContent = r.pin;
+    $('#doneRef').textContent = r.ref; $('#donePin').textContent = r.pin; ssSet('moe_cr_done', { ref: r.ref, pin: r.pin });
     step = 0; reset();
     if (cur.d > 0){ pendingDone = true; history.go(-cur.d); } else push({ s: 'done' });
   } catch(err){ const b = $('#sendErr'); b.textContent = err && err.message && err.message.indexOf(t('errServer')) === 0 ? err.message : t('errSend'); b.hidden = false; }
@@ -555,9 +578,18 @@ $('#langBtn').onclick = () => { LANG = LANG === 'en' ? 'gil' : 'en'; sSet('moe_c
   $('#demoText').textContent = DEMO ? t('demo') : t('notConnected');
   restore(); applyText();
   const wantTrack = location.hash === '#track';
-  history.replaceState({ s: 'home', d: 0 }, '', location.pathname + location.search);
-  render({ s: 'home', d: 0 });
-  if (wantTrack) push({ s: 'track' });
+  const was = history.state;   // the browser keeps this through a refresh
+  if (was && was.s && typeof was.d === 'number'){
+    if (was.s === 'done'){
+      const dn = ssGet('moe_cr_done');
+      if (dn){ $('#doneRef').textContent = dn.ref; $('#donePin').textContent = dn.pin; render(was); }
+      else { history.replaceState({ s: 'home', d: was.d }, '', location.pathname + location.search); render({ s: 'home', d: was.d }); }
+    } else render(was);
+  } else {
+    history.replaceState({ s: 'home', d: 0 }, '', location.pathname + location.search);
+    render({ s: 'home', d: 0 });
+    if (wantTrack) push({ s: 'track' });
+  }
   if (!DEMO && CONNECTED){
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 8000);
     fetch(CONFIG.SCRIPT_URL + '?action=config', { signal: ctl.signal }).then(r => r.json()).then(c => {
