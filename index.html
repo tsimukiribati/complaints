@@ -30,7 +30,7 @@
   h1{font-size:27px;line-height:1.2;margin:0 0 8px;color:var(--navy)}
   h2{font-size:23px;line-height:1.25;margin:0 0 6px;color:var(--navy)}
   .lead{margin:0 0 18px;color:var(--ink-2)}
-  .hint{font-size:16px;color:var(--muted);margin:0 0 12px}
+  .hint{font-size:16px;color:var(--muted);margin:0 0 12px} .lang-hint{margin-top:-4px}
   .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 16px}
   [hidden]{display:none!important}
 
@@ -165,7 +165,7 @@
     <section class="card" data-step="3" hidden>
       <h2 data-t="q3"></h2>
       <ul class="tips"><li data-t="tip1"></li><li data-t="tip2"></li><li data-t="tip3"></li></ul>
-      <div class="field"><label class="lbl" for="details" data-t="q3label"></label><textarea id="details" maxlength="5000"></textarea></div>
+      <div class="field"><label class="lbl" for="details" data-t="q3label"></label><p class="hint lang-hint" id="detailsHint" data-t="q3lang"></p><textarea id="details" maxlength="5000" aria-describedby="detailsHint"></textarea></div>
       <div class="field">
         <span class="lbl"><span data-t="photo"></span> <span class="optl" data-t="optional"></span></span>
         <p class="hint" data-t="photoHint"></p>
@@ -277,7 +277,7 @@ const TEXT = {
   whichSection:'Which section of the office?', ifKnow:'(if you know)', dontKnow:'I do not know',
   otherPlace:'Where?',
   q2:'What is your complaint about?', q2hint:'Tap the answer that fits best. If none fits, tap Something else.',
-  q3:'Tell us what happened', q3label:'Write your complaint here',
+  q3:'Tell us what happened', q3label:'Write your complaint here', q3lang:'You can write in Kiribati or English.',
   tip1:'What happened, and when?', tip2:'Who did you speak to, if you know?', tip3:'What would you like the Ministry to do?',
   photo:'Photo', optional:'(optional)', photoHint:'You can add one photo, for example of a letter.',
   photoCamera:'Take a photo', photoGallery:'Choose a saved photo', photoRemove:'Remove photo',
