@@ -148,7 +148,6 @@
     <section class="card" data-step="1">
       <h2 data-t="q1"></h2><p class="hint" data-t="q1hint"></p>
       <div id="placeOpts"></div>
-      <div class="more" id="schoolBox" hidden><label class="lbl" for="school" data-t="whichSchool"></label><select id="school"></select></div>
       <div class="more" id="sectionBox" hidden><label class="lbl" for="section"><span data-t="whichSection"></span> <span class="optl" data-t="ifKnow"></span></label><select id="section"></select></div>
       <div class="more" id="otherBox" hidden><label class="lbl" for="otherPlace"><span data-t="otherPlace"></span> <span class="optl" data-t="ifKnow"></span></label><input type="text" id="otherPlace" maxlength="100"></div>
       <div class="err" id="err1" hidden></div>
@@ -252,13 +251,13 @@ const CONFIG = {
 const BUILD = 'live';   /* live or demo */
 
 /* These lists load from the Google Sheet (Lists tab) when the page is connected. */
-let OFFICES = ['MOE Headquarters, Bikenibeu', 'Kiribati Teachers College (KTC)', 'Kiribati National Library and Archives (KNLA)'];
+let OFFICES = ['MOE Headquarters, Bikenibeu', 'Kiribati Teachers College (KTC)', 'Kiribati National Library and Archives (KNLA)',
+  'Examinations and Assessment Unit (EAU)', 'Curriculum Development Resource Centre (CDRC)'];
 let CATEGORIES = ['Waited too long or slow service', 'No reply to my letter or request', 'Rude or unhelpful staff',
   'Wrong or unclear information', 'Salary, allowance or payment', 'Scholarship', 'Results, certificates or records',
-  'Enrolment, admission or transfer', 'Teacher registration', 'A problem at a school', 'A student is unsafe or at risk', 'Something else'];
+  'Enrolment, admission or transfer', 'Teacher registration', 'A student is unsafe or at risk', 'Something else'];
 const SECTIONS = ["Secretary's Office", 'Administration and Registry', 'Human Resources', 'Accounts', 'FMU', 'PPRD', 'TSIMU',
   'SIU Primary', 'SIU JSS', 'SSS', 'ECCE and Inclusive Education', 'KQA', 'Teacher Registration'];
-const SCHOOLS = ["KJSS006 Betio JSS","KJSS007 TUC1 JSS","KJSS008 Animarao JSS/ TUC2 JSS","KJSS025 Ngaon te Rabakau","KPS030 Bareaumai Primary School","KPS031 Tabontemaneaba Primary School","KPS032 Bikenibeu West Primary School","KPS033 War Memorial Primary School","KPS034 Tebwanimwaneka Primary School","KPS035 Abaunamou Primary School","KPS036 Taakeni Bairiki Primary School","KPS037 Dai Nippon Primary School","KPS038 Temwanoku Primary School","KPS039 St John Bosco Primary School","KPS090 Rurubao","KPS094 Temaiku Sunrise Primary School","KSSS001 King George V & Elaine Bernacchi","KSSS007 St.Louis High School","KSSS009 Moroni High School","KSSS011 Sacred Heart High School","KSSS013 Church of God High School","KSSS014 William Goward Memorial School","KSSS018 St. Patrick College","KSSS020 Santa Maria"];
 const URGENT_CATEGORIES = ['A student is unsafe or at risk'];
 
 /* All words on the page. A Gilbertese version can be added as TEXT.gil with the same keys.
@@ -271,9 +270,7 @@ const TEXT = {
   homeHelp:'Not sure how to use this? Ask any MOE officer to help you, or call {phone}.',
   back:'Back', step:'Step {n} of 5', next:'Next',
   q1:'Where did this happen?', q1hint:'Tap one answer.',
-  school:'A school in South Tarawa', schoolSub:'Choose the school next',
   other:'Somewhere else, or I am not sure',
-  whichSchool:'Which school?', chooseSchool:'Choose the school', notInList:'The school is not in this list',
   whichSection:'Which section of the office?', ifKnow:'(if you know)', dontKnow:'I do not know',
   otherPlace:'Where?',
   q2:'What is your complaint about?', q2hint:'Tap the answer that fits best. If none fits, tap Something else.',
@@ -302,7 +299,7 @@ const TEXT = {
   submitted:'Sent on', aboutLbl:'About', updates:'Messages from the Ministry', noUpdates:'No messages yet. An officer will look at your complaint soon.',
   st_New:'Received', st_Acknowledged:'Being reviewed', st_Assigned:'With an officer', 'st_In progress':'Being worked on', st_Resolved:'Solved', st_Closed:'Closed',
   p1:'Received', p2:'Reviewed', p3:'Being handled', p4:'Solved',
-  e1:'Please tap where this happened.', e1s:'Please choose the school.',
+  e1:'Please tap where this happened.',
   e2:'Please tap what your complaint is about.', e3:'Please write a little more about what happened.',
   e4:'Please tap one answer.', e4name:'Please type your name.', e4contact:'Please type your phone number (or an email).', e4email:'This email does not look right.', e4phone:'This phone number looks too short.',
   e5:'Please tick the box above.', eT:'Please type both numbers.',
@@ -340,9 +337,9 @@ function ssDel(k){ try { window.sessionStorage.removeItem(k); } catch(e){} }
 const digits = s => String(s || '').replace(/\D/g, '');
 
 /* answers kept here */
-const A = { place:'', school:'', section:'', other:'', category:'', mode:'' };
+const A = { place:'', section:'', other:'', category:'', mode:'' };
 let photo = null, step = 0;
-const SCHOOL = '__school', OTHER = '__other';
+const OTHER = '__other';
 
 function applyText(){
   $$('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
@@ -356,11 +353,10 @@ function applyText(){
 }
 function optBtn(val, label, sub, cur){ return '<button type="button" class="opt" data-val="' + esc(val) + '" aria-pressed="' + (cur === val) + '"><span class="dot"></span><span>' + esc(label) + (sub ? '<small>' + esc(sub) + '</small>' : '') + '</span></button>'; }
 function buildOptions(){
-  $('#placeOpts').innerHTML = OFFICES.map(o => optBtn(o, tr(o), '', A.place)).join('') + optBtn(SCHOOL, t('school'), t('schoolSub'), A.place) + optBtn(OTHER, t('other'), '', A.place);
+  $('#placeOpts').innerHTML = OFFICES.map(o => optBtn(o, tr(o), '', A.place)).join('') + optBtn(OTHER, t('other'), '', A.place);
   $('#catOpts').innerHTML = CATEGORIES.map(c => optBtn(c, tr(c), '', A.category)).join('');
-  $('#school').innerHTML = '<option value="">' + esc(t('chooseSchool')) + '</option>' + SCHOOLS.map(s => '<option>' + esc(s) + '</option>').join('') + '<option value="' + esc(t('notInList')) + '">' + esc(t('notInList')) + '</option>';
   $('#section').innerHTML = '<option value="">' + esc(t('dontKnow')) + '</option>' + SECTIONS.map(s => '<option value="' + esc(s) + '">' + esc(tr(s)) + '</option>').join('');
-  $('#school').value = A.school; $('#section').value = A.section;
+  $('#section').value = A.section;
   $$('#placeOpts .opt').forEach(b => b.onclick = () => { A.place = b.dataset.val; pressed('#placeOpts', b); showMore(); hideErr(1); save(); });
   $$('#catOpts .opt').forEach(b => b.onclick = () => { A.category = b.dataset.val; pressed('#catOpts', b); hideErr(2); save(); });
   $$('.opt[data-mode]').forEach(b => { b.setAttribute('aria-pressed', A.mode === b.dataset.mode); b.onclick = () => { A.mode = b.dataset.mode; $$('.opt[data-mode]').forEach(x => x.setAttribute('aria-pressed', x === b)); $('#namedBox').hidden = A.mode !== 'named'; hideErr(4); save(); if (A.mode === 'named') setTimeout(() => $('#name').focus(), 50); }; });
@@ -369,7 +365,6 @@ function buildOptions(){
 }
 function pressed(root, b){ $$(root + ' .opt').forEach(x => x.setAttribute('aria-pressed', x === b)); }
 function showMore(){
-  $('#schoolBox').hidden = A.place !== SCHOOL;
   $('#sectionBox').hidden = A.place !== OFFICES[0];
   $('#otherBox').hidden = A.place !== OTHER;
 }
@@ -413,14 +408,12 @@ $('#backBtn').onclick = () => history.back();
 $$('[data-next]').forEach(b => b.onclick = () => { if (check(step)) push({ s: 'form', n: Number(b.dataset.next) }); });
 
 function placeText(){
-  if (A.place === SCHOOL) return t('school') + ': ' + A.school;
   if (A.place === OTHER) return A.other || t('other');
   return A.place;
 }
 function check(n){
   if (n === 1){
     if (!A.place) return showErr(1, t('e1')), false;
-    if (A.place === SCHOOL && !A.school) return showErr(1, t('e1s')), false;
   }
   if (n === 2 && !A.category) return showErr(2, t('e2')), false;
   if (n === 3 && $('#details').value.trim().length < 10) return showErr(3, t('e3')), false;
@@ -437,7 +430,6 @@ function check(n){
   if (n === 5 && !$('#consent').checked) return showErr(5, t('e5')), false;
   hideErr(n); return true;
 }
-$('#school').onchange = () => { A.school = $('#school').value; hideErr(1); save(); };
 $('#section').onchange = () => { A.section = $('#section').value; save(); };
 $('#otherPlace').oninput = () => { A.other = $('#otherPlace').value.trim(); save(); };
 $('#details').oninput = () => { hideErr(3); save(); };
@@ -445,7 +437,7 @@ $('#details').oninput = () => { hideErr(3); save(); };
 $('#consent').onchange = () => hideErr(5);
 
 function buildReview(){
-  const rows = [[t('r_where'), (A.place === SCHOOL || A.place === OTHER ? placeText() : tr(A.place)) + (A.place === OFFICES[0] && A.section ? ', ' + tr(A.section) : '')], [t('r_about'), tr(A.category)], [t('r_what'), $('#details').value.trim()]];
+  const rows = [[t('r_where'), (A.place === OTHER ? placeText() : tr(A.place)) + (A.place === OFFICES[0] && A.section ? ', ' + tr(A.section) : '')], [t('r_about'), tr(A.category)], [t('r_what'), $('#details').value.trim()]];
   rows.push([t('r_contact'), A.mode === 'anon' ? t('r_anon') : [$('#name').value.trim(), $('#phone').value.trim(), $('#email').value.trim()].filter(Boolean).join('\n')]);
   if (photo) rows.push([t('r_photo'), t('r_photoYes')]);
   $('#review').innerHTML = rows.map(r => '<div><dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd></div>').join('');
@@ -491,7 +483,8 @@ window.addEventListener('pagehide', () => { if (step) { clearTimeout(dTimer); sa
 document.addEventListener('visibilitychange', () => { if (document.hidden && step) { clearTimeout(dTimer); saveNow(); } });
 function restore(){
   const d = sGet(DRAFT); if (!d || !(d.details || d.place || d.category)) return;
-  ['place','school','section','other','category','mode'].forEach(k => A[k] = d[k] || '');
+  ['place','section','other','category','mode'].forEach(k => A[k] = d[k] || '');
+  if (A.place && A.place !== OTHER && OFFICES.indexOf(A.place) < 0) A.place = '';   /* old draft (for example a school) */
   $('#details').value = d.details || ''; $('#name').value = d.name || ''; $('#phone').value = d.phone || ''; $('#email').value = d.email || ''; $('#otherPlace').value = A.other;
   $('#draftNote').hidden = false;
   const ph = ssGet('moe_cr_photo');
