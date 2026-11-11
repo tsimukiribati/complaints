@@ -380,11 +380,29 @@ function showStep(n, quiet){
   if (n === 5) buildReview();
   if (!quiet) window.scrollTo(0, 0);
 }
-$('#goMake').onclick = () => showStep(1);
-$('#goTrack').onclick = () => screen('track');
-$('#trackBack').onclick = () => screen('home');
-$('#backBtn').onclick = () => step > 1 ? showStep(step - 1) : (step = 0, screen('home'));
-$$('[data-next]').forEach(b => b.onclick = () => { if (check(step)) showStep(Number(b.dataset.next)); });
+/* Phone Back button: every screen is saved in the browser history, so the phone's
+   Back button goes to the previous question instead of closing the page. */
+let cur = { s: 'home', d: 0 }, pendingDone = false;
+function render(st){
+  cur = st;
+  if (st.s === 'form') showStep(st.n);
+  else { if (st.s === 'home') step = 0; screen(st.s); }
+}
+function push(st){
+  st.d = cur.d + 1;
+  history.pushState(st, '', '#' + (st.s === 'form' ? 'step' + st.n : st.s));
+  render(st);
+}
+window.addEventListener('popstate', e => {
+  const st = (e.state && e.state.s) ? e.state : { s: 'home', d: 0 };
+  if (pendingDone && st.d === 0){ pendingDone = false; cur = st; push({ s: 'done' }); return; }
+  render(st);
+});
+$('#goMake').onclick = () => push({ s: 'form', n: 1 });
+$('#goTrack').onclick = () => push({ s: 'track' });
+$('#trackBack').onclick = () => history.back();
+$('#backBtn').onclick = () => history.back();
+$$('[data-next]').forEach(b => b.onclick = () => { if (check(step)) push({ s: 'form', n: Number(b.dataset.next) }); });
 
 function placeText(){
   if (A.place === SCHOOL) return t('school') + ': ' + A.school;
@@ -460,7 +478,7 @@ function reset(){
   Object.keys(A).forEach(k => A[k] = ''); photo = null; $('#f').reset(); $('#photoPrev').hidden = true; $('#photoRemove').hidden = true;
   sDel(DRAFT); $('#draftNote').hidden = true; $('#sendErr').hidden = true; $$('.err').forEach(e => e.hidden = true); applyText();
 }
-$('#clearDraft').onclick = () => { reset(); showStep(1); };
+$('#clearDraft').onclick = () => { reset(); if (cur.d > 1) history.go(1 - cur.d); else showStep(1); };
 
 /* ---------------- send to the Ministry ---------------- */
 async function callScript(payload, ms){
@@ -495,11 +513,13 @@ $('#f').onsubmit = async e => {
     const r = DEMO ? await demoSubmit(p) : await callScript(p);
     if (!r || !r.ok) throw new Error(r && r.error ? t('errServer') + r.error : t('errSend'));
     sDel(DRAFT);
-    $('#doneRef').textContent = r.ref; $('#donePin').textContent = r.pin; screen('done');
+    $('#doneRef').textContent = r.ref; $('#donePin').textContent = r.pin;
+    step = 0; reset();
+    if (cur.d > 0){ pendingDone = true; history.go(-cur.d); } else push({ s: 'done' });
   } catch(err){ const b = $('#sendErr'); b.textContent = err && err.message && err.message.indexOf(t('errServer')) === 0 ? err.message : t('errSend'); b.hidden = false; }
   finally { btn.disabled = false; btn.textContent = t('send'); }
 };
-$('#doneHome').onclick = () => { reset(); step = 0; screen('home'); };
+$('#doneHome').onclick = () => { reset(); step = 0; if (cur.d > 0) history.back(); else render({ s: 'home', d: 0 }); };
 
 /* ---------------- check my complaint ---------------- */
 const LEVEL = { 'New':1, 'Acknowledged':2, 'Assigned':3, 'In progress':3, 'Resolved':4, 'Closed':4 };
@@ -534,7 +554,10 @@ $('#langBtn').onclick = () => { LANG = LANG === 'en' ? 'gil' : 'en'; sSet('moe_c
   $('#demoBanner').classList.toggle('off', !DEMO && !CONNECTED);
   $('#demoText').textContent = DEMO ? t('demo') : t('notConnected');
   restore(); applyText();
-  if (location.hash === '#track') screen('track'); else screen('home');
+  const wantTrack = location.hash === '#track';
+  history.replaceState({ s: 'home', d: 0 }, '', location.pathname + location.search);
+  render({ s: 'home', d: 0 });
+  if (wantTrack) push({ s: 'track' });
   if (!DEMO && CONNECTED){
     const ctl = new AbortController(); setTimeout(() => ctl.abort(), 8000);
     fetch(CONFIG.SCRIPT_URL + '?action=config', { signal: ctl.signal }).then(r => r.json()).then(c => {
